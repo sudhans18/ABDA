@@ -15,3 +15,13 @@ venv/
 # Model/cache directories
 .cache/
 .huggingface/
+
+# Python virtual environment
+.venv/
+
+# Generated video
+*.mp4
+
+# Python cache
+__pycache__/
+*.pyc

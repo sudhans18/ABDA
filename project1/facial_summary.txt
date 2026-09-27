@@ -1,0 +1,77 @@
+========================================
+       ABDA FACIAL SESSION SUMMARY
+========================================
+
+Duration          : 40.43 sec
+Total Frames      : 1035
+Face Detected     : 1022
+Face Quality      : 98.74 %
+
+HEAD POSE
+----------------------------------------
+Pitch Mean        : 55.03 deg
+Pitch Std         : 144.07 deg
+Pitch Min         : -179.61 deg
+Pitch Max         : 179.54 deg
+
+Yaw Mean          : 2.13 deg
+Yaw Std           : 22.47 deg
+Yaw Min           : -56.64 deg
+Yaw Max           : 72.13 deg
+
+Roll Mean         : -7.42 deg
+Roll Std          : 38.46 deg
+Roll Min          : -177.02 deg
+Roll Max          : 130.65 deg
+
+BLINK
+----------------------------------------
+Total Blinks      : 44
+Blink Rate        : 65.30 / min
+
+EAR
+----------------------------------------
+EAR Mean          : 0.273
+EAR Std           : 0.081
+EAR Min           : 0.062
+EAR Max           : 0.574
+
+GAZE
+----------------------------------------
+Left              : 5.87 %
+Center            : 86.59 %
+Right             : 7.53 %
+Gaze Ratio Mean   : 0.513
+Gaze Ratio Std    : 0.069
+Gaze Ratio Min    : 0.184
+Gaze Ratio Max    : 0.835
+
+ACTION UNITS
+----------------------------------------
+
+AU INTENSITY
+AU01_r     Mean: 0.219   Std: 0.461   Min: 0.000   Max: 4.500   Activity: 55.85%
+AU02_r     Mean: 0.158   Std: 0.461   Min: 0.000   Max: 4.260   Activity: 36.91%
+AU04_r     Mean: 1.418   Std: 0.418   Min: 0.080   Max: 2.320   Activity: 100.00%
+AU05_r     Mean: 0.126   Std: 0.320   Min: 0.000   Max: 2.700   Activity: 27.05%
+AU06_r     Mean: 0.011   Std: 0.049   Min: 0.000   Max: 0.450   Activity: 8.31%
+AU07_r     Mean: 0.866   Std: 0.693   Min: 0.000   Max: 3.200   Activity: 82.80%
+AU09_r     Mean: 0.196   Std: 0.375   Min: 0.000   Max: 1.540   Activity: 37.68%
+AU10_r     Mean: 0.225   Std: 0.356   Min: 0.000   Max: 1.460   Activity: 39.61%
+AU12_r     Mean: 0.005   Std: 0.030   Min: 0.000   Max: 0.550   Activity: 4.73%
+AU14_r     Mean: 0.109   Std: 0.259   Min: 0.000   Max: 1.640   Activity: 26.67%
+AU15_r     Mean: 0.426   Std: 0.721   Min: 0.000   Max: 4.360   Activity: 57.58%
+AU17_r     Mean: 0.777   Std: 0.582   Min: 0.000   Max: 3.030   Activity: 85.80%
+AU20_r     Mean: 0.150   Std: 0.241   Min: 0.000   Max: 1.230   Activity: 47.54%
+AU23_r     Mean: 0.168   Std: 0.368   Min: 0.000   Max: 2.250   Activity: 44.06%
+AU25_r     Mean: 0.493   Std: 0.492   Min: 0.000   Max: 2.290   Activity: 80.77%
+AU26_r     Mean: 0.450   Std: 0.426   Min: 0.000   Max: 2.340   Activity: 83.38%
+AU45_r     Mean: 0.231   Std: 0.359   Min: 0.000   Max: 1.790   Activity: 49.66%
+
+AU PRESENCE
+AU28_c     Presence: 0.39%
+
+OpenFace Raw CSV:
+C:\Users\Surender Sah K\Downloads\ABDA\project1\openface_output\abda_session.csv
+
+========================================

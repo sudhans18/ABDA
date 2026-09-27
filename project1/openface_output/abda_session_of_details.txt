@@ -1,0 +1,10 @@
+Input:C:\Users\Surender Sah K\Downloads\ABDA\project1\abda_session.mp4
+Input full path:C:\Users\Surender Sah K\Downloads\ABDA\project1\abda_session.mp4
+Camera parameters:500,500,320,240
+Output csv:abda_session.csv
+Gaze: 0
+AUs: 1
+Landmarks 2D: 0
+Landmarks 3D: 0
+Pose: 0
+Shape parameters: 0
