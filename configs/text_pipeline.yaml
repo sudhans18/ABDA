@@ -1,0 +1,67 @@
+# ==========================================
+# ABDA Phase 1 - Text Pipeline Configuration
+# ==========================================
+
+pipeline:
+  name: "cmu_mosei_text"
+  version: "phase1_v1"
+
+# ------------------------------------------
+# Input data
+# ------------------------------------------
+
+input:
+  words_file: "data/raw/CMU_MOSEI_TimestampedWords.csd"
+  labels_file: "data/raw/CMU_MOSEI_Labels.csd"
+
+# ------------------------------------------
+# Output directories
+# ------------------------------------------
+
+output:
+  directory: "data/processed/text"
+
+# ------------------------------------------
+# LaBSE
+# ------------------------------------------
+
+labse:
+  model_name: "sentence-transformers/LaBSE"
+  max_length: 256
+  batch_size: 32
+  normalize_embeddings: true
+
+# ------------------------------------------
+# Sentiment
+# ------------------------------------------
+
+sentiment:
+  source: "cardiff"
+  model_name: "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+  batch_size: 32
+  max_length: 256
+
+# ------------------------------------------
+# Linguistic complexity
+# ------------------------------------------
+
+complexity:
+  spacy_model: "en_core_web_sm"
+  batch_size: 64
+
+# ------------------------------------------
+# Validation
+# ------------------------------------------
+
+validation:
+  expected_embedding_dimension: 768
+  expected_final_dimension: 774
+
+# ------------------------------------------
+# Runtime
+# ------------------------------------------
+
+runtime:
+  device: "auto"
+  save_intermediate: true
+  
