@@ -15,10 +15,10 @@ the embedding-ready dataset, matching the Phase 1 experiment.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Optional
 
-import numpy as np
 import pandas as pd
+
+from .csd import read_csd
 
 
 LABEL_NAMES = [
@@ -32,141 +32,176 @@ LABEL_NAMES = [
 ]
 
 
-def load_csd_sequences(words_path: str | Path, labels_path: str | Path):
-    """Load CMU-MOSEI timestamped words and labels using MMSDK."""
-    try:
-        from mmsdk import mmdatasdk
-    except ImportError as exc:
-        raise ImportError(
-            "CMU-MOSEI preprocessing requires MMSDK. "
-            "Install the CMU-MultimodalSDK package."
-        ) from exc
-
-    words_dataset = mmdatasdk.mmdataset({"words": str(words_path)})
-    labels_dataset = mmdatasdk.mmdataset({"labels": str(labels_path)})
-    return words_dataset["words"], labels_dataset["labels"]
-
-
-def get_words_for_interval(segment_id, start: float, end: float, words_sequence):
+def load_csd_sequences(
+    words_path: str | Path,
+    labels_path: str | Path,
+):
     """
-    Return timestamped words overlapping [start, end).
+    Load CMU-MOSEI timestamped words and labels.
 
-    Exact Phase 1 overlap rule:
-        word_end > start AND word_start < end
-
-    'sp' is a CMU-MOSEI pause annotation and is excluded from semantic text.
+    Uses the internal HDF5 CSD reader rather than the
+    legacy CMU Multimodal SDK.
     """
-    group = words_sequence.data[segment_id]
-    intervals = group["intervals"][:]
-    features = group["features"][:]
 
-    selected = []
-    for interval, feature in zip(intervals, features):
-        word_start = float(interval[0])
-        word_end = float(interval[1])
+    words_path = Path(words_path)
+    labels_path = Path(labels_path)
 
-        if word_end > start and word_start < end:
-            word = feature[0].decode("utf-8").strip()
-            if word.lower() == "sp":
-                continue
-            selected.append((word_start, word_end, word))
+    print("Loading timestamped words...")
 
-    selected.sort(key=lambda x: x[0])
-    return selected
+    words_dataset = read_csd(words_path)
 
-
-def build_aligned_segments(words_sequence, labels_sequence) -> pd.DataFrame:
-    """Build one row per CMU-MOSEI labelled interval."""
-    common_ids = sorted(
-        set(words_sequence.data.keys()) & set(labels_sequence.data.keys())
+    print(
+        f"  Word sources: "
+        f"{len(words_dataset):,}"
     )
 
-    rows = []
+    print("Loading labels...")
+
+    labels_dataset = read_csd(labels_path)
+
+    print(
+        f"  Label sources: "
+        f"{len(labels_dataset):,}"
+    )
+
+    return words_dataset, labels_dataset
+
+
+def build_aligned_segments(
+    words_sequence: dict,
+    labels_sequence: dict,
+) -> pd.DataFrame:
+    """
+    Reconstruct timestamp-aligned CMU-MOSEI text samples.
+
+    For every labelled temporal interval, select timestamped
+    words satisfying:
+
+        word_end > label_start
+        AND
+        word_start < label_end
+
+    Selected words are sorted chronologically.
+
+    CMU-MOSEI 'sp' pause annotations are excluded.
+    """
+
+    common_ids = sorted(
+        set(words_sequence.keys())
+        &
+        set(labels_sequence.keys())
+    )
+
+    print(
+        f"Common segment IDs: "
+        f"{len(common_ids):,}"
+    )
+
+    aligned_rows = []
 
     for segment_id in common_ids:
-        label_group = labels_sequence.data[segment_id]
-        label_intervals = label_group["intervals"][:]
-        label_features = label_group["features"][:]
 
-        for label_idx, (interval, label_vector) in enumerate(
-            zip(label_intervals, label_features)
-        ):
-            start = float(interval[0])
-            end = float(interval[1])
+        word_group = words_sequence[segment_id]
+        label_group = labels_sequence[segment_id]
 
-            selected_words = get_words_for_interval(
-                segment_id, start, end, words_sequence
+        word_intervals = word_group["intervals"]
+        word_features = word_group["features"]
+
+        label_intervals = label_group["intervals"]
+        label_features = label_group["features"]
+
+        for label_idx, (
+            label_interval,
+            label_vector,
+        ) in enumerate(
+            zip(
+                label_intervals,
+                label_features,
             )
-            text = " ".join(word for _, _, word in selected_words)
+        ):
 
-            vector = np.asarray(label_vector, dtype=np.float32).reshape(-1)
-            if len(vector) != len(LABEL_NAMES):
-                raise ValueError(
-                    f"Unexpected CMU-MOSEI label dimension for {segment_id}: "
-                    f"{len(vector)}; expected {len(LABEL_NAMES)}."
-                )
+            label_start = float(label_interval[0])
+            label_end = float(label_interval[1])
 
-            rows.append(
+            selected_words = []
+
+            for word_interval, word_feature in zip(
+                word_intervals,
+                word_features,
+            ):
+
+                word_start = float(word_interval[0])
+                word_end = float(word_interval[1])
+
+                if (
+                    word_end > label_start
+                    and
+                    word_start < label_end
+                ):
+
+                    word = word_feature[0]
+
+                    if isinstance(word, bytes):
+                        word = word.decode("utf-8")
+
+                    word = str(word).strip()
+
+                    if word.lower() == "sp":
+                        continue
+
+                    selected_words.append(
+                        (
+                            word_start,
+                            word_end,
+                            word,
+                        )
+                    )
+
+            selected_words.sort(
+                key=lambda x: x[0]
+            )
+
+            text = " ".join(
+                word
+                for _, _, word in selected_words
+            )
+
+            aligned_rows.append(
                 {
                     "segment_id": segment_id,
-                    "label_idx": int(label_idx),
-                    "start": start,
-                    "end": end,
+                    "label_idx": label_idx,
+                    "start": label_start,
+                    "end": label_end,
                     "text": text,
-                    "label": vector.tolist(),
+                    "label": (
+                        label_vector.tolist()
+                        if hasattr(label_vector, "tolist")
+                        else list(label_vector)
+                    ),
                 }
             )
 
-    df = pd.DataFrame(rows)
-
-    if df.empty:
-        raise ValueError("No aligned CMU-MOSEI labelled segments were produced.")
-
-    label_matrix = np.vstack(df["label"].to_numpy())
-    for i, name in enumerate(LABEL_NAMES):
-        df[name] = label_matrix[:, i]
-
-    df = df.drop(columns=["label"])
-
-    # token_count is deliberately added in add_labse_token_count().
-    # It must be computed with the exact LaBSE tokenizer because the 256-token
-    # filtering decision is part of the Phase 1 artifact definition.
-
-    df = df[
-        [
-            "segment_id",
-            "label_idx",
-            "start",
-            "end",
-            "text",
-            *LABEL_NAMES,
-        ]
-    ]
-
-    return df
+    return pd.DataFrame(aligned_rows)
 
 
 def add_labse_token_count(
     df: pd.DataFrame,
-    model_name: str = "sentence-transformers/LaBSE",
+    encoder,
 ) -> pd.DataFrame:
-    """Compute the exact LaBSE tokenizer length used by the embedding stage."""
-    from sentence_transformers import SentenceTransformer
+    """
+    Calculate full LaBSE tokenizer length without truncation.
 
-    model = SentenceTransformer(model_name)
-    tokenizer = model.tokenizer
+    The resulting column is named `token_count` to preserve
+    the validated Notebook 1 schema.
+    """
 
     result = df.copy()
+
     result["token_count"] = [
-        len(
-            tokenizer(
-                str(text),
-                truncation=False,
-                add_special_tokens=True,
-            )["input_ids"]
-        )
+        encoder.count_tokens(text)
         for text in result["text"]
     ]
+
     return result
 
 
@@ -174,25 +209,21 @@ def make_embedding_ready(
     df: pd.DataFrame,
     max_length: int = 256,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Split aligned data into LaBSE-compatible and excluded samples.
 
-    Returns:
-        embedding_ready, excluded
-    """
     if "token_count" not in df.columns:
-        raise ValueError("token_count column is required.")
+        raise ValueError(
+            "token_count column is required."
+        )
 
-    ready = df.loc[df["token_count"] <= max_length].copy()
-    excluded = df.loc[df["token_count"] > max_length].copy()
+    ready = df.loc[
+        df["token_count"] <= max_length
+    ].copy()
 
-    return ready.reset_index(drop=True), excluded.reset_index(drop=True)
+    excluded = df.loc[
+        df["token_count"] > max_length
+    ].copy()
 
-
-def clean_transcript(text: str) -> str:
-    """Remove CMU-MOSEI 'sp' annotations and normalize whitespace."""
-    import re
-
-    text = re.sub(r"\bsp\b", " ", str(text))
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    return (
+        ready.reset_index(drop=True),
+        excluded.reset_index(drop=True),
+    )

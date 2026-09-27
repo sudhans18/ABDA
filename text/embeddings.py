@@ -3,29 +3,103 @@ ABDA Phase 1 — LaBSE semantic embedding pipeline.
 """
 
 from __future__ import annotations
+from dataclasses import dataclass
+from sentence_transformers import SentenceTransformer
 
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
 
+@dataclass
+class LaBSEEncoder:
+    """
+    Reusable LaBSE tokenizer + encoder.
 
-DEFAULT_MODEL = "sentence-transformers/LaBSE"
+    The same model instance is used for both:
+    1. token-length validation
+    2. embedding generation
+    """
 
+    model_name: str = "sentence-transformers/LaBSE"
+    device: str | None = None
+    max_length: int = 256
+
+    def __post_init__(self):
+        kwargs = {}
+
+        if self.device is not None:
+            kwargs["device"] = self.device
+
+        self.model = SentenceTransformer(
+            self.model_name,
+            **kwargs,
+        )
+
+        self.tokenizer = self.model.tokenizer
+
+    def count_tokens(
+        self,
+        text: str,
+    ) -> int:
+        """
+        Count the full number of LaBSE tokens without truncation.
+
+        This intentionally allows sequences longer than the model's
+        256-token input limit because Stage 3 uses this count to
+        identify and exclude over-length samples.
+        """
+
+        tokenizer = self.tokenizer
+
+        original_max_length = tokenizer.model_max_length
+
+        try:
+            # Temporarily disable the tokenizer's warning threshold.
+            tokenizer.model_max_length = int(1e9)
+
+            encoded = tokenizer(
+                str(text),
+                add_special_tokens=True,
+                truncation=False,
+                return_attention_mask=False,
+            )
+
+        finally:
+            tokenizer.model_max_length = original_max_length
+
+        return len(encoded["input_ids"])
+
+    def encode(
+        self,
+        texts,
+        batch_size: int = 32,
+        normalize_embeddings: bool = True,
+    ) -> np.ndarray:
+
+        embeddings = self.model.encode(
+            list(texts),
+            batch_size=batch_size,
+            normalize_embeddings=normalize_embeddings,
+            convert_to_numpy=True,
+            show_progress_bar=True,
+        )
+
+        return np.asarray(
+            embeddings,
+            dtype=np.float32,
+        )
 
 def load_labse(
-    model_name: str = DEFAULT_MODEL,
-    device: str | None = None,
+    model_name="sentence-transformers/LaBSE",
+    device=None,
+    max_length=256,
 ):
-    """Load LaBSE lazily so importing this module does not download weights."""
-    import torch
-    from sentence_transformers import SentenceTransformer
-
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    model = SentenceTransformer(model_name, device=device)
-    return model
+    return LaBSEEncoder(
+        model_name=model_name,
+        device=device,
+        max_length=max_length,
+    )
 
 
 def encode_texts(
@@ -52,31 +126,23 @@ def encode_texts(
 
 
 def add_embeddings(
-    df: pd.DataFrame,
-    model,
-    text_column: str = "text",
-    batch_size: int = 32,
-) -> pd.DataFrame:
-    """Return a copy of df with a 768-D `labse_embedding` column."""
-    if text_column not in df.columns:
-        raise KeyError(f"Missing text column: {text_column}")
+    df,
+    encoder,
+    text_column="text",
+    batch_size=32,
+):
+    result = df.copy()
 
-    embeddings = encode_texts(
-        df[text_column].astype(str).tolist(),
-        model=model,
+    embeddings = encoder.encode(
+        result[text_column].tolist(),
         batch_size=batch_size,
         normalize_embeddings=True,
     )
 
-    expected_dim = model.get_sentence_embedding_dimension()
-    if embeddings.shape != (len(df), expected_dim):
-        raise ValueError(
-            f"Unexpected embedding shape {embeddings.shape}; "
-            f"expected {(len(df), expected_dim)}."
-        )
+    result["labse_embedding"] = list(
+        embeddings
+    )
 
-    result = df.reset_index(drop=True).copy()
-    result["labse_embedding"] = list(embeddings)
     return result
 
 

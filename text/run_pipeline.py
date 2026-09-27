@@ -181,6 +181,15 @@ def run_pipeline(config_path: str | Path) -> pd.DataFrame:
         labels_sequence,
     )
 
+    expected_aligned_rows = 23259
+
+    if len(aligned) != expected_aligned_rows:
+        raise ValueError(
+            "Unexpected aligned sample count: "
+            f"expected {expected_aligned_rows}, "
+            f"got {len(aligned)}."
+        )
+
     print(f"Aligned segments: {len(aligned)}")
 
     if save_intermediate:
@@ -190,25 +199,62 @@ def run_pipeline(config_path: str | Path) -> pd.DataFrame:
         )
 
     # ============================================================
-    # STAGE 2 — LaBSE TOKEN FILTERING
+    # STAGE 2 - LOAD LABSE ONCE
+    # ============================================================
+    print_stage(
+        2,
+        "Loading LaBSE",
+    )
+
+    device = resolve_device(config)
+    labse_config = config["labse"]
+
+    labse_encoder = load_labse(
+        model_name=labse_config["model_name"],
+        device=device,
+        max_length=labse_config["max_length"],
+    )
+
+    print(
+        f"LaBSE model loaded: "
+        f"{labse_config['model_name']}"
+    )
+
+    # ============================================================
+    # STAGE 3 — LaBSE TOKEN FILTERING
     # ============================================================
 
     print_stage(
-        2,
+        3,
         "LaBSE Token-Length Filtering",
     )
 
-    labse_config = config["labse"]
-
     aligned = add_labse_token_count(
         aligned,
-        model_name=labse_config["model_name"],
+        encoder=labse_encoder,
     )
 
     embedding_ready, excluded = make_embedding_ready(
         aligned,
         max_length=labse_config["max_length"],
     )
+
+    expected_embedding_ready = 23253
+    expected_excluded = 6
+
+    if len(embedding_ready) != expected_embedding_ready:
+        raise ValueError(
+            "Unexpected LaBSE-ready sample count: "
+            f"expected {expected_embedding_ready}, "
+            f"got {len(embedding_ready)}."
+        )
+
+    if len(excluded) != expected_excluded:
+        raise ValueError(
+            "Unexpected excluded sample count: "
+            f"expected {expected_excluded}, "
+            f"got {len(excluded)}."
+        )
 
     print(f"Total aligned : {len(aligned)}")
     print(f"Embedding ready: {len(embedding_ready)}")
@@ -231,27 +277,20 @@ def run_pipeline(config_path: str | Path) -> pd.DataFrame:
         )
 
     # ============================================================
-    # STAGE 3 — LaBSE EMBEDDINGS
+    # STAGE 4 — LaBSE EMBEDDINGS
     # ============================================================
 
     print_stage(
-        3,
+        4,
         "LaBSE Semantic Embeddings",
-    )
-
-    device = resolve_device(config)
-
-    model = load_labse(
-        model_name=labse_config["model_name"],
-        device=device,
     )
 
     embedded = add_embeddings(
         embedding_ready,
-        model=model,
+        encoder=labse_encoder,
         text_column="text",
         batch_size=labse_config["batch_size"],
-    )
+    ) 
 
     embedding_matrix = np.vstack(
         embedded["labse_embedding"].to_numpy()
@@ -276,11 +315,11 @@ def run_pipeline(config_path: str | Path) -> pd.DataFrame:
         )
 
     # ============================================================
-    # STAGE 4 — FINAL NLP FEATURES
+    # STAGE 5 — FINAL NLP FEATURES
     # ============================================================
 
     print_stage(
-        4,
+        5,
         "Sentiment + Linguistic Complexity + MSTTR",
     )
 
@@ -303,11 +342,11 @@ def run_pipeline(config_path: str | Path) -> pd.DataFrame:
         print(f"{i:2d} | {column}")
 
     # ============================================================
-    # STAGE 5 — VALIDATION
+    # STAGE 6 — VALIDATION
     # ============================================================
 
     print_stage(
-        5,
+        6,
         "Final NLP Pipeline Validation",
     )
 
@@ -330,20 +369,29 @@ def run_pipeline(config_path: str | Path) -> pd.DataFrame:
         "expected_final_dimension"
     ]
 
-    actual_dimension = (
+    actual_feature_dimension = (
         768
         + 1
         + 4
         + 1
     )
 
-    if actual_dimension != expected_dimension:
+    if actual_feature_dimension != expected_dimension:
         raise ValueError(
             f"Expected final dimension "
             f"{expected_dimension}, "
             f"but pipeline defines "
-            f"{actual_dimension}."
+            f"{actual_feature_dimension}."
         )
+
+    print(
+    f"Final DataFrame columns : {final.shape[1]}"
+    )
+
+    print(
+        f"Numerical feature dims  : "
+        f"{actual_feature_dimension}"
+    )
 
     print()
     print("VALIDATION: PASS")
