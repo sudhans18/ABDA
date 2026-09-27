@@ -7,6 +7,7 @@ numpy>=1.26,<3
 pandas>=2.1,<3
 scipy>=1.11,<2
 h5py>=3.10,<4
+dotenv
 
 # ==============================
 # NLP / Transformers
@@ -16,6 +17,9 @@ torch>=2.2
 transformers>=4.40,<6
 sentence-transformers>=3.0,<6
 tokenizers>=0.19,<1
+sentencepiece>=0.2.0
+tiktoken
+protobuf
 
 # ==============================
 # Linguistic analysis
@@ -38,4 +42,3 @@ praat-parselmouth>=0.4,<1
 PyYAML>=6.0,<7
 tqdm>=4.66,<5
 joblib>=1.3,<2
-tiktoken==0.14.0

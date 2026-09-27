@@ -22,8 +22,9 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
+from dotenv import load_dotenv
 
-
+load_dotenv()
 CARDIFF_MODEL = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
 
 
@@ -45,7 +46,11 @@ def extract_cardiff_sentiment(
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(
+    model_name,
+    use_fast=False,
+    )
+
     model = AutoModelForSequenceClassification.from_pretrained(model_name)
     model.to(device)
     model.eval()
