@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 
@@ -76,7 +77,8 @@ def validate_text_identity(df: pd.DataFrame) -> None:
         )
 
     invalid_intervals = (
-        (df["start"] < 0)
+        ~np.isfinite(df["start"])
+        | ~np.isfinite(df["end"])
         | (df["end"] <= df["start"])
     )
 
@@ -151,7 +153,7 @@ def parse_args():
         "--text-artifact",
         type=str,
         default=(
-            "data/processed/"
+            "data/processed/text/"
             "CMU_MOSEI_final_NLP_features.pkl"
         ),
     )
