@@ -7,7 +7,7 @@ numpy>=1.26,<3
 pandas>=2.1,<3
 scipy>=1.11,<2
 h5py>=3.10,<4
-dotenv
+python-dotenv>=1.0,<2
 
 # ==============================
 # NLP / Transformers
@@ -18,8 +18,8 @@ transformers>=4.40,<6
 sentence-transformers>=3.0,<6
 tokenizers>=0.19,<1
 sentencepiece>=0.2.0
-tiktoken
-protobuf
+tiktoken>=0.7,<1
+protobuf>=4.25,<7
 
 # ==============================
 # Linguistic analysis
@@ -34,6 +34,13 @@ spacy>=3.8,<4
 librosa>=0.10,<1
 soundfile>=0.12,<1
 praat-parselmouth>=0.4,<1
+
+# ==============================
+# Video / Face
+# ==============================
+
+opencv-python>=4.9,<5
+mediapipe>=0.10,<0.11
 
 # ==============================
 # Configuration / utilities
