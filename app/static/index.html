@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ABDA — Multimodal Analysis Demo</title>
+  <meta name="description" content="ABDA Phase 1 local live-demo: multimodal audio-visual depression analysis research tool. Record or upload a short sample and see text, speech, and facial feature extraction results." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ====================================================================
+       DESIGN TOKENS & RESET
+       ==================================================================== */
+    :root {
+      --bg-base:       #0b0d14;
+      --bg-surface:    #12151f;
+      --bg-card:       #181b28;
+      --bg-card2:      #1e2232;
+      --border:        rgba(99,130,255,0.13);
+      --border-bright: rgba(99,130,255,0.28);
+      --accent:        #6382ff;
+      --accent2:       #a78bfa;
+      --accent3:       #38d9a9;
+      --accent-warn:   #f59e0b;
+      --accent-err:    #f87171;
+      --text-primary:  #e8eaf6;
+      --text-secondary:#9ca3c8;
+      --text-muted:    #5a627a;
+      --green:         #34d399;
+      --radius:        12px;
+      --radius-sm:     8px;
+      --shadow:        0 8px 40px rgba(0,0,0,0.55);
+      --glow:          0 0 24px rgba(99,130,255,0.18);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: "Inter", system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    a { color: var(--accent); }
+
+    /* ====================================================================
+       LAYOUT
+       ==================================================================== */
+    .app-shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    /* ====================================================================
+       HEADER
+       ==================================================================== */
+    .header {
+      text-align: center;
+      padding: 48px 0 36px;
+    }
+    .header-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, rgba(99,130,255,0.18), rgba(167,139,250,0.14));
+      border: 1px solid var(--border-bright);
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 18px;
+    }
+    .header h1 {
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #e8eaf6 30%, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.15;
+    }
+    .header-sub {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-top: 10px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .no-prediction-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.25);
+      border-radius: 8px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: var(--accent-warn);
+      margin-top: 14px;
+    }
+
+    /* ====================================================================
+       CARD
+       ==================================================================== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--border-bright); }
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* ====================================================================
+       CAMERA PANEL
+       ==================================================================== */
+    .camera-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .video-container {
+      position: relative;
+      width: 100%;
+      max-width: 560px;
+      aspect-ratio: 16/9;
+      background: #0d0f1a;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow), var(--glow);
+    }
+    #cameraPreview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .video-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 0.3s;
+    }
+    .video-overlay.hidden { opacity: 0; }
+    .overlay-icon {
+      font-size: 42px;
+      margin-bottom: 10px;
+      opacity: 0.35;
+    }
+    .overlay-label {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Recording indicator */
+    .rec-indicator {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,0,0,0.65);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-err);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .rec-indicator.active { opacity: 1; }
+    .rec-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-err);
+      animation: pulse-rec 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse-rec {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.3; transform: scale(0.8); }
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.18s;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+    .btn::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.06);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .btn:hover::before { opacity: 1; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.38; pointer-events: none; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #3d5af1, #6382ff);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(99,130,255,0.30);
+    }
+    .btn-danger {
+      background: linear-gradient(135deg, #c0392b, #f87171);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(248,113,113,0.25);
+    }
+    .btn-success {
+      background: linear-gradient(135deg, #0f7a55, #34d399);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(52,211,153,0.25);
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--text-secondary);
+      border-color: var(--border-bright);
+    }
+    .btn-outline:hover { color: var(--text-primary); border-color: var(--accent); }
+
+    /* ====================================================================
+       STATUS BAR
+       ==================================================================== */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--bg-card2);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-height: 40px;
+    }
+    .status-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(99,130,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+      display: none;
+    }
+    .status-bar.processing .status-spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ====================================================================
+       RESULTS GRID
+       ==================================================================== */
+    #resultsSection { display: none; }
+    #resultsSection.visible { display: block; animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; } }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .result-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .result-card:hover {
+      border-color: var(--border-bright);
+      box-shadow: var(--shadow), var(--glow);
+    }
+    .result-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .result-card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+    .icon-text  { background: rgba(99,130,255,0.15); }
+    .icon-speech{ background: rgba(52,211,153,0.13); }
+    .icon-face  { background: rgba(167,139,250,0.13); }
+    .icon-integ { background: rgba(251,191,36,0.11); }
+    .result-card-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .result-card-label b {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--text-primary);
+    }
+
+    /* KV rows */
+    .kv-list { display: flex; flex-direction: column; gap: 7px; }
+    .kv {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(99,130,255,0.06);
+    }
+    .kv:last-child { border-bottom: none; }
+    .kv-key {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .kv-val {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      text-align: right;
+      word-break: break-all;
+    }
+    .kv-val.highlight { color: var(--accent3); }
+    .kv-val.warn      { color: var(--accent-warn); }
+    .kv-val.err       { color: var(--accent-err); }
+    .kv-val.muted     { color: var(--text-muted); font-style: italic; }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .badge-pass  { background: rgba(52,211,153,0.15); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+    .badge-fail  { background: rgba(248,113,113,0.12); color: var(--accent-err); border: 1px solid rgba(248,113,113,0.3); }
+    .badge-warn  { background: rgba(251,191,36,0.12); color: var(--accent-warn); border: 1px solid rgba(251,191,36,0.3); }
+    .badge-muted { background: rgba(90,98,122,0.15); color: var(--text-muted); border: 1px solid rgba(90,98,122,0.2); }
+    .badge-info  { background: rgba(99,130,255,0.12); color: var(--accent); border: 1px solid rgba(99,130,255,0.25); }
+
+    /* Transcript box */
+    .transcript-box {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text-primary);
+      min-height: 56px;
+      white-space: pre-wrap;
+    }
+    .transcript-inference-note {
+      font-size: 10px;
+      color: var(--accent-warn);
+      margin-top: 6px;
+    }
+
+    /* Progress bar */
+    .progress-bar-wrap {
+      height: 3px;
+      background: var(--bg-card2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .progress-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.4s;
+    }
+
+    /* ====================================================================
+       UPLOAD AREA
+       ==================================================================== */
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: transparent;
+    }
+    .upload-area:hover,
+    .upload-area.dragover {
+      border-color: var(--accent);
+      background: rgba(99,130,255,0.04);
+    }
+    .upload-icon { font-size: 30px; opacity: 0.5; margin-bottom: 8px; }
+    .upload-label { font-size: 13px; color: var(--text-secondary); }
+    .upload-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    #fileInput { display: none; }
+
+    /* ====================================================================
+       SECTION DIVIDER
+       ==================================================================== */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 28px 0 22px;
+    }
+    .section-divider::before,
+    .section-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .section-divider-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ====================================================================
+       INTEGRATION PANEL
+       ==================================================================== */
+    .integration-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(99,130,255,0.06);
+    }
+    .integration-row:last-child { border-bottom: none; }
+    .integration-key {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ====================================================================
+       RESPONSIVE
+       ==================================================================== */
+    @media (max-width: 600px) {
+      .controls { flex-direction: column; }
+      .btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ====================================================================
+       HEADER
+       ==================================================================== -->
+  <header class="header">
+    <div class="header-badge">ABDA Phase 1 · Research Demo</div>
+    <h1>Multimodal Analysis</h1>
+    <p class="header-sub">
+      Record or upload a short audio/video sample to run the ABDA speech,
+      facial, and text feature extraction pipelines.
+    </p>
+    <div class="no-prediction-banner">
+      ⚠️ No depression/BDI prediction — feature extraction only. No fusion implemented.
+    </div>
+  </header>
+
+  <!-- ====================================================================
+       CAMERA / RECORD PANEL
+       ==================================================================== -->
+  <div class="card">
+    <div class="card-title">Camera &amp; Microphone</div>
+    <div class="camera-panel">
+      <div class="video-container" id="videoContainer">
+        <video id="cameraPreview" autoplay muted playsinline></video>
+        <div class="video-overlay" id="videoOverlay">
+          <div class="overlay-icon">📷</div>
+          <div class="overlay-label">Click "Start Camera" to begin</div>
+        </div>
+        <div class="rec-indicator" id="recIndicator">
+          <div class="rec-dot"></div>
+          REC
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-outline" id="btnCamera">📷 Start Camera</button>
+        <button class="btn btn-primary" id="btnRecord" disabled>⏺ Start Recording</button>
+        <button class="btn btn-danger" id="btnStop" disabled>⏹ Stop Recording</button>
+        <button class="btn btn-success" id="btnAnalyze" disabled>🔬 Analyze</button>
+      </div>
+
+      <div class="status-bar" id="statusBar">
+        <div class="status-spinner" id="statusSpinner"></div>
+        <span id="statusText">Ready — start camera or upload a file below.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       UPLOAD AREA
+       ==================================================================== -->
+  <div class="card">
+    <div class="card-title">Upload File</div>
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">📁</div>
+      <div class="upload-label">Drop an audio or video file here, or click to browse</div>
+      <div class="upload-sub">Supported: .mp4, .webm, .mov, .wav, .mp3, .m4a</div>
+    </div>
+    <input type="file" id="fileInput" accept="audio/*,video/*" />
+  </div>
+
+  <!-- ====================================================================
+       RESULTS
+       ==================================================================== -->
+  <section id="resultsSection">
+    <div class="section-divider">
+      <span class="section-divider-label">Analysis Results</span>
+    </div>
+
+    <!-- Transcript -->
+    <div class="card" id="cardTranscript">
+      <div class="card-title">Transcript</div>
+      <div class="transcript-box" id="transcriptText">—</div>
+      <div class="transcript-inference-note" id="transcriptNote">
+        ⚠️ Live Whisper inference — NOT CMU-MOSEI ground truth.
+      </div>
+    </div>
+
+    <div class="results-grid">
+
+      <!-- TEXT -->
+      <div class="result-card" id="cardText">
+        <div class="result-card-header">
+          <div class="result-card-icon icon-text">📝</div>
+          <div class="result-card-label">
+            Modality
+            <b>Text Features</b>
+          </div>
+        </div>
+        <div class="kv-list" id="textKV"></div>
+      </div>
+
+      <!-- SPEECH -->
+      <div class="result-card" id="cardSpeech">
+        <div class="result-card-header">
+          <div class="result-card-icon icon-speech">🎤</div>
+          <div class="result-card-label">
+            Modality
+            <b>Speech Features</b>
+          </div>
+        </div>
+        <div class="kv-list" id="speechKV"></div>
+      </div>
+
+      <!-- FACIAL -->
+      <div class="result-card" id="cardFace">
+        <div class="result-card-header">
+          <div class="result-card-icon icon-face">👁️</div>
+          <div class="result-card-label">
+            Modality
+            <b>Facial Features</b>
+          </div>
+        </div>
+        <div class="kv-list" id="faceKV"></div>
+      </div>
+
+      <!-- INTEGRATION -->
+      <div class="result-card" id="cardIntegration">
+        <div class="result-card-header">
+          <div class="result-card-icon icon-integ">🔗</div>
+          <div class="result-card-label">
+            Summary
+            <b>Integration Status</b>
+          </div>
+        </div>
+        <div class="kv-list" id="integrationKV"></div>
+      </div>
+
+    </div><!-- /results-grid -->
+  </section>
+
+</div><!-- /app-shell -->
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  stream: null,
+  mediaRecorder: null,
+  recordedChunks: [],
+  recordedBlob: null,
+  uploadedFile: null,
+  isRecording: false,
+};
+
+// ============================================================
+// ELEMENTS
+// ============================================================
+const $ = id => document.getElementById(id);
+const cameraPreview = $("cameraPreview");
+const videoOverlay  = $("videoOverlay");
+const recIndicator  = $("recIndicator");
+const btnCamera     = $("btnCamera");
+const btnRecord     = $("btnRecord");
+const btnStop       = $("btnStop");
+const btnAnalyze    = $("btnAnalyze");
+const statusBar     = $("statusBar");
+const statusText    = $("statusText");
+const statusSpinner = $("statusSpinner");
+const uploadArea    = $("uploadArea");
+const fileInput     = $("fileInput");
+const resultsSection= $("resultsSection");
+
+// ============================================================
+// STATUS
+// ============================================================
+function setStatus(msg, processing = false) {
+  statusText.textContent = msg;
+  if (processing) {
+    statusBar.classList.add("processing");
+  } else {
+    statusBar.classList.remove("processing");
+  }
+}
+
+// ============================================================
+// CAMERA
+// ============================================================
+btnCamera.addEventListener("click", async () => {
+  if (state.stream) {
+    stopCamera();
+    return;
+  }
+  try {
+    state.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    cameraPreview.srcObject = state.stream;
+    videoOverlay.classList.add("hidden");
+    btnCamera.textContent = "⏏ Stop Camera";
+    btnRecord.disabled = false;
+    setStatus("Camera active. Press 'Start Recording' when ready.");
+  } catch (e) {
+    setStatus("Camera access denied or unavailable: " + e.message);
+  }
+});
+
+function stopCamera() {
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => t.stop());
+    state.stream = null;
+  }
+  cameraPreview.srcObject = null;
+  videoOverlay.classList.remove("hidden");
+  btnCamera.textContent = "📷 Start Camera";
+  btnRecord.disabled = true;
+  setStatus("Camera stopped.");
+}
+
+// ============================================================
+// RECORDING
+// ============================================================
+btnRecord.addEventListener("click", () => {
+  if (!state.stream) return;
+  state.recordedChunks = [];
+  state.uploadedFile = null;
+
+  const mimeType = getSupportedMime();
+  const options = mimeType ? { mimeType } : {};
+
+  try {
+    state.mediaRecorder = new MediaRecorder(state.stream, options);
+  } catch (e) {
+    state.mediaRecorder = new MediaRecorder(state.stream);
+  }
+
+  state.mediaRecorder.ondataavailable = e => {
+    if (e.data.size > 0) state.recordedChunks.push(e.data);
+  };
+  state.mediaRecorder.onstop = () => {
+    const mime = state.mediaRecorder.mimeType || "video/webm";
+    state.recordedBlob = new Blob(state.recordedChunks, { type: mime });
+    btnAnalyze.disabled = false;
+    setStatus(`Recording ready (${(state.recordedBlob.size / 1024).toFixed(0)} KB). Press 'Analyze'.`);
+  };
+
+  state.mediaRecorder.start(200);
+  state.isRecording = true;
+  recIndicator.classList.add("active");
+  btnRecord.disabled = true;
+  btnStop.disabled = false;
+  btnAnalyze.disabled = true;
+  setStatus("Recording… Press 'Stop Recording' when finished.");
+});
+
+btnStop.addEventListener("click", () => {
+  if (state.mediaRecorder && state.isRecording) {
+    state.mediaRecorder.stop();
+    state.isRecording = false;
+    recIndicator.classList.remove("active");
+    btnStop.disabled = true;
+    btnRecord.disabled = false;
+  }
+});
+
+function getSupportedMime() {
+  const types = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus",
+                 "video/webm", "video/mp4"];
+  return types.find(t => MediaRecorder.isTypeSupported(t)) || "";
+}
+
+// ============================================================
+// FILE UPLOAD
+// ============================================================
+uploadArea.addEventListener("click", () => fileInput.click());
+uploadArea.addEventListener("dragover", e => { e.preventDefault(); uploadArea.classList.add("dragover"); });
+uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("dragover"));
+uploadArea.addEventListener("drop", e => {
+  e.preventDefault();
+  uploadArea.classList.remove("dragover");
+  const f = e.dataTransfer.files[0];
+  if (f) handleFileSelect(f);
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) handleFileSelect(fileInput.files[0]);
+});
+
+function handleFileSelect(file) {
+  state.uploadedFile = file;
+  state.recordedBlob = null;
+  btnAnalyze.disabled = false;
+  setStatus(`File selected: ${file.name} (${(file.size / 1024).toFixed(0)} KB). Press 'Analyze'.`);
+}
+
+// ============================================================
+// ANALYZE
+// ============================================================
+btnAnalyze.addEventListener("click", () => runAnalysis());
+
+async function runAnalysis() {
+  const blob = state.recordedBlob || state.uploadedFile;
+  if (!blob) { setStatus("No recording or file available."); return; }
+
+  const filename = state.recordedBlob
+    ? "recording.webm"
+    : (state.uploadedFile ? state.uploadedFile.name : "upload");
+
+  setStatus("Uploading and analyzing… this may take 20–90 seconds.", true);
+  btnAnalyze.disabled = true;
+  resultsSection.classList.remove("visible");
+
+  const formData = new FormData();
+  formData.append("file", blob, filename);
+
+  try {
+    const res = await fetch("/api/analyze", { method: "POST", body: formData });
+    if (!res.ok) {
+      const err = await res.text();
+      setStatus("Error from server: " + err);
+      return;
+    }
+    const data = await res.json();
+    renderResults(data);
+    setStatus("Analysis complete.");
+  } catch (e) {
+    setStatus("Request failed: " + e.message);
+  } finally {
+    btnAnalyze.disabled = false;
+  }
+}
+
+// ============================================================
+// RENDER RESULTS
+// ============================================================
+function renderResults(data) {
+  // Transcript
+  const tr = data.transcript || {};
+  $("transcriptText").textContent = tr.text || "(no transcript)";
+  $("transcriptNote").textContent = tr.source === "live_inference"
+    ? `⚠️ Live Whisper inference (${tr.model || "openai/whisper-tiny"}) — NOT CMU-MOSEI ground truth.`
+    : "Transcript source unknown.";
+
+  // Text
+  renderTextCard(data.text || {});
+
+  // Speech
+  renderSpeechCard(data.speech || {});
+
+  // Facial
+  renderFaceCard(data.facial || {});
+
+  // Integration
+  renderIntegrationCard(data.integration || {});
+
+  resultsSection.classList.add("visible");
+  resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ---- Text ----
+function renderTextCard(t) {
+  const kv = $("textKV");
+  kv.innerHTML = "";
+  addKV(kv, "Status", statusBadge(t.status));
+  if (t.status === "available") {
+    addKV(kv, "Source", `<span class="badge badge-warn">live_inference</span>`);
+    addKV(kv, "Word Count", fmt(t.word_count));
+    addKV(kv, "Avg Word Length", fmt(t.avg_word_length, 3));
+    addKV(kv, "Dep. Tree Depth", fmt(t.dependency_tree_depth));
+    addKV(kv, "Avg Dep. Distance", fmt(t.avg_dependency_distance, 3));
+    const msttr = t.msttr_10 != null ? fmt(t.msttr_10, 4) : `<span class="kv-val muted">NaN (< 10 tokens)</span>`;
+    addKV(kv, "MSTTR-10", msttr);
+    // LaBSE / sentiment -- explicitly not computed
+    const labseInfo = t.labse_embedding;
+    if (labseInfo && typeof labseInfo === "object") {
+      addKV(kv, "LaBSE (768-D)", `<span class="kv-val warn">${labseInfo.status || "not_computed"}</span>`);
+    }
+    const sentInfo = t.sentiment_normalized;
+    if (sentInfo && typeof sentInfo === "object") {
+      addKV(kv, "Sentiment", `<span class="kv-val warn">${sentInfo.status || "not_computed"}</span>`);
+    }
+    if (t.note) {
+      addKV(kv, "Note", `<span class="kv-val muted" style="font-size:10px">${escHtml(t.note.substring(0, 120))}…</span>`);
+    }
+  }
+}
+
+// ---- Speech ----
+function renderSpeechCard(s) {
+  const kv = $("speechKV");
+  kv.innerHTML = "";
+  addKV(kv, "Status", statusBadge(s.status));
+  if (s.status === "available") {
+    addKV(kv, "Feature Dim", `<span class="kv-val highlight">${s.feature_dim}</span>`);
+    addKV(kv, "Quality Score", fmtHighlight(s.quality_score, 4));
+    addKV(kv, "Speech Ratio", fmt(s.speech_ratio, 4));
+    addKV(kv, "SNR Estimate", fmt(s.snr_estimate, 2) + " dB");
+    const fs = s.feature_summary || {};
+    if (Object.keys(fs).length) {
+      addKV(kv, "— F0 Mean", fmt(fs.f0_mean, 2) + " Hz");
+      addKV(kv, "— F0 Std", fmt(fs.f0_std, 2));
+      addKV(kv, "— Speaking Rate", fmt(fs.speaking_rate_wps, 2) + " wps");
+      addKV(kv, "— Jitter", fmt(fs.jitter_local, 5));
+      addKV(kv, "— Shimmer", fmt(fs.shimmer_local, 5));
+      addKV(kv, "— HNR", fmt(fs.hnr_mean, 2) + " dB");
+      addKV(kv, "— Pauses", fmt(fs.pause_count, 0));
+      addKV(kv, "— RMS Mean", fmt(fs.rms_mean, 5));
+    }
+    addKV(kv, "Feature Version", `<span class="kv-val muted">${s.feature_version || "n/a"}</span>`);
+  }
+}
+
+// ---- Facial ----
+function renderFaceCard(fa) {
+  const kv = $("faceKV");
+  kv.innerHTML = "";
+  if (fa.status === "not_applicable") {
+    addKV(kv, "Status", `<span class="badge badge-muted">Not applicable (audio only)</span>`);
+    return;
+  }
+  addKV(kv, "Status", statusBadge(fa.status));
+  if (fa.status === "available") {
+    addKV(kv, "Face Coverage", fmtHighlight(fa.face_coverage_percent, 1) + "%");
+    addKV(kv, "Blink Count", fmt(fa.blink_count, 0));
+    addKV(kv, "Blink Rate/min", fmt(fa.blink_rate_per_minute, 3));
+    const ear = fa.ear_statistics || {};
+    addKV(kv, "EAR Mean", fmt(ear.mean, 3));
+    addKV(kv, "EAR Std", fmt(ear.std, 3));
+    const gr = (fa.gaze_statistics || {}).ratio || {};
+    const gp = (fa.gaze_statistics || {}).percentages || {};
+    addKV(kv, "Gaze Mean", fmt(gr.mean, 3));
+    addKV(kv, "Gaze (L/C/R)", [gp.LEFT, gp.CENTER, gp.RIGHT].map(v => fmt(v,1)).join("% / ") + "%");
+    const pose = fa.head_pose_statistics || {};
+    const p = pose.pitch || {}, y = pose.yaw || {}, r = pose.roll || {};
+    addKV(kv, "Pitch Mean", fmt(p.mean, 2) + "°");
+    addKV(kv, "Yaw Mean", fmt(y.mean, 2) + "°");
+    addKV(kv, "Roll Mean", fmt(r.mean, 2) + "°");
+    // OpenFace -- always explicit
+    const of = fa.openface || {};
+    addKV(kv, "OpenFace", ofBadge(of.status));
+    if (of.error) {
+      addKV(kv, "OF Error", `<span class="kv-val muted" style="font-size:10px">${escHtml(of.error.substring(0, 80))}</span>`);
+    }
+    addKV(kv, "AU Count", `<span class="kv-val ${fa.au_count > 0 ? '' : 'muted'}">${fa.au_count}</span>`);
+    if (fa.video_metadata) {
+      const vm = fa.video_metadata;
+      addKV(kv, "Duration", fmt(vm.duration_seconds, 2) + "s @ " + fmt(vm.fps, 0) + "fps");
+    }
+  }
+}
+
+// ---- Integration ----
+function renderIntegrationCard(integ) {
+  const kv = $("integrationKV");
+  kv.innerHTML = "";
+  const avail = integ.modality_availability || {};
+  addKV(kv, "Text", availBadge(avail.text));
+  addKV(kv, "Speech", availBadge(avail.speech));
+  addKV(kv, "Facial", availBadge(avail.facial));
+  addKV(kv, "Alignment", alignBadge(integ.alignment_status));
+  addKV(kv, "Fusion", `<span class="badge badge-muted">NOT IMPLEMENTED</span>`);
+  addKV(kv, "Prediction", `<span class="badge badge-muted">NOT IMPLEMENTED</span>`);
+  if (integ.note) {
+    addKV(kv, "Note", `<span class="kv-val muted" style="font-size:10px">${escHtml(integ.note || "")}</span>`);
+  }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function addKV(container, key, valueHtml) {
+  container.insertAdjacentHTML("beforeend", `
+    <div class="kv">
+      <span class="kv-key">${escHtml(key)}</span>
+      <span class="kv-val">${valueHtml}</span>
+    </div>
+  `);
+}
+
+function fmt(v, decimals = 4) {
+  if (v === null || v === undefined) return `<span class="kv-val muted">—</span>`;
+  const n = Number(v);
+  if (isNaN(n)) return `<span class="kv-val muted">NaN</span>`;
+  return `<span class="kv-val">${n.toFixed(decimals)}</span>`;
+}
+function fmtHighlight(v, decimals = 4) {
+  if (v === null || v === undefined) return `<span class="kv-val muted">—</span>`;
+  return `<span class="kv-val highlight">${Number(v).toFixed(decimals)}</span>`;
+}
+
+function statusBadge(s) {
+  if (!s) return `<span class="badge badge-muted">unknown</span>`;
+  if (s === "available") return `<span class="badge badge-pass">available</span>`;
+  if (s === "unavailable") return `<span class="badge badge-muted">unavailable</span>`;
+  if (s === "error") return `<span class="badge badge-fail">error</span>`;
+  return `<span class="badge badge-muted">${escHtml(s)}</span>`;
+}
+function availBadge(s) {
+  if (!s) return `<span class="badge badge-muted">—</span>`;
+  if (s === "available") return `<span class="badge badge-pass">✓ available</span>`;
+  if (s === "not_applicable") return `<span class="badge badge-info">not applicable</span>`;
+  return `<span class="badge badge-muted">${escHtml(s)}</span>`;
+}
+function alignBadge(s) {
+  if (!s) return `<span class="badge badge-muted">—</span>`;
+  if (s === "PASS") return `<span class="badge badge-pass">PASS</span>`;
+  if (s === "PARTIAL") return `<span class="badge badge-warn">PARTIAL</span>`;
+  return `<span class="badge badge-fail">FAIL</span>`;
+}
+function ofBadge(s) {
+  if (!s) return `<span class="badge badge-muted">not_run</span>`;
+  if (s === "success") return `<span class="badge badge-pass">success</span>`;
+  if (s === "unavailable") return `<span class="badge badge-warn">unavailable</span>`;
+  if (s === "failed") return `<span class="badge badge-fail">failed</span>`;
+  return `<span class="badge badge-muted">${escHtml(s)}</span>`;
+}
+
+function escHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+</script>
+</body>
+</html>
